@@ -20,13 +20,26 @@ class InstrKind(Enum):
 @unique
 class TacUnaryOp(Enum):
     NEG = auto()
+    NOT = auto()
+    SEQZ = auto()
+    SNEZ = auto()
 
 # Kinds of binary operations.
 @unique
 class TacBinaryOp(Enum):
+    OR = auto()
     ADD = auto()
-    LOR = auto()
-
+    SUB = auto()
+    MUL = auto()
+    DIV = auto()
+    REM = auto()
+    EQU = auto()
+    LEQ = auto()
+    SLT = auto()
+    NEQ = auto()
+    SGT = auto()
+    GEQ = auto()
+    AND = auto()
 
 # Kinds of branching with conditions.
 @unique

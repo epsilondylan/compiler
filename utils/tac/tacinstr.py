@@ -115,7 +115,7 @@ class Binary(TACInstr):
             TacBinaryOp.SUB: "-",
             TacBinaryOp.MUL: "*",
             TacBinaryOp.DIV: "/",
-            TacBinaryOp.MOD: "%",
+            TacBinaryOp.REM: "%",
             TacBinaryOp.EQU: "==",
             TacBinaryOp.NEQ: "!=",
             TacBinaryOp.SLT: "<",
