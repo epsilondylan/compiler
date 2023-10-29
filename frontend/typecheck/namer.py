@@ -95,13 +95,18 @@ class Namer(Visitor[Scope, None]):
         3. Set the 'symbol' attribute of decl.
         4. If there is an initial value, visit it.
         """
-        raise NotImplementedError
+        symbol = ctx.lookup(decl.ident.value)
+        if symbol is None:
+            newvar = VarSymbol(decl.ident.value, decl.var_t.type)
+            ctx.declare(newvar)
+            decl.setattr('symbol', newvar)
+        if decl.init_expr is not NULL:
+            decl.init_expr.accept(self, ctx)
 
     def visitAssignment(self, expr: Assignment, ctx: Scope) -> None:
-        """
-        1. Refer to the implementation of visitBinary.
-        """
-        raise NotImplementedError
+        if not isinstance(expr.lhs, Identifier):
+            raise DecafSyntaxError('Invalid Assigment cause lhs of the expression is not a Idenfifier')
+        self.visitBinary(expr, ctx)
 
     def visitUnary(self, expr: Unary, ctx: Scope) -> None:
         expr.operand.accept(self, ctx)
@@ -122,7 +127,10 @@ class Namer(Visitor[Scope, None]):
         2. If it has not been declared, raise a DecafUndefinedVarError.
         3. Set the 'symbol' attribute of ident.
         """
-        raise NotImplementedError
+        symbol = ctx.lookup(ident.value)
+        if symbol is None:
+            raise DecafUndefinedFuncError('Invalid behavior because identifier is not defined')
+        ident.setattr('symbol',symbol)
 
     def visitIntLiteral(self, expr: IntLiteral, ctx: Scope) -> None:
         value = expr.value
