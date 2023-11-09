@@ -163,16 +163,6 @@ class TACGen(Visitor[TACFuncEmitter, None]):
         """
         ident.setattr('val',ident.getattr('symbol').temp)
 
-    def visitDeclaration(self, decl: Declaration, mv: TACFuncEmitter) -> None:
-        """
-        1. Get the 'symbol' attribute of decl.
-        2. Use mv.freshTemp to get a new temp variable for this symbol.
-        3. If the declaration has an initial value, use mv.visitAssignment to set it.
-        """
-        decl.getattr('symbol').temp = mv.freshTemp()
-        if decl.init_expr is not NULL:
-            decl.init_expr.accept(self, mv)
-            mv.visitAssignment(decl.getattr('symbol').temp, decl.init_expr.getattr('val'))
 
     def visitAssignment(self, expr: Assignment, mv: TACFuncEmitter) -> None:
         """
