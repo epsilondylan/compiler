@@ -97,10 +97,18 @@ class Namer(Visitor[ScopeStack, None]):
         3. Set the 'symbol' attribute of decl.
         4. If there is an initial value, visit it.
         """
+        
         if ctx.findConflict(decl.ident.value) is not None:
             symbol = ctx.findConflict(decl.ident.value)
+            newvar = VarSymbol(decl.ident.value, decl.var_t.type)
+            ctx.declare(newvar)
+            decl.setattr('symbol', newvar)
         else:
             symbol = ctx.lookup(decl.ident.value)
+            if(decl.getattr('symbol') is None):
+                newvar = VarSymbol(decl.ident.value, decl.var_t.type)
+                ctx.declare(newvar)
+                decl.setattr('symbol', newvar)
         if symbol is None:
             newvar = VarSymbol(decl.ident.value, decl.var_t.type)
             ctx.declare(newvar)

@@ -8,7 +8,8 @@ class ScopeStack:
         self.innerstack = []
         self.globalscope = globalscope
         self.stack_capacity = capacity
-        
+        self.repeat = 0
+    
     def get_current_scope(self) -> Scope:
         if not self.stack:
             return self.globalscope
@@ -49,6 +50,9 @@ class ScopeStack:
     
     def findConflict(self, name: str) -> Optional[Symbol]:
         if self.get_current_scope().containsKey(name):
+            self.repeat += 1
+            if(self.repeat>=2):
+                raise AttributeError("Cannot redefine!")
             return self.get_current_scope().get(name)
         return None
     
@@ -60,13 +64,11 @@ class ScopeStack:
 
     def local(self):
         self.open(Scope(ScopeKind.LOCAL))
-        self.innerstack += [self.close]
+        self.innerstack.append(self.close)
         return self
 
     def global_(self):
         self.open(Scope(ScopeKind.GLOBAL))
-        self.innerstack += [self.close]
+        self.innerstack.append(self.close)
         return self
     
-    def declare(self, symbol: Symbol) -> None:
-        self.get_current_scope().declare(symbol)

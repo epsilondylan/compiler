@@ -27,7 +27,13 @@ class CFG:
         You can start from basic block 0 and do a DFS traversal of the CFG
         to find all the reachable basic blocks.
         """
-
+        self.reachable = set()
+        q = [0]
+        while q:
+            visited_node = q.pop(0)
+            self.reachable.add(visited_node)
+            for n in self.links[visited_node][1].difference(self.reachable):
+                q.append(n)
     def getBlock(self, id):
         return self.nodes[id]
 
