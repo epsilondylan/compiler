@@ -17,6 +17,8 @@ reserved = {
     "if": "If",
     "else": "Else",
     "while": "While",
+    "for": "For",
+    "continue": "Continue",
     "break": "Break",
 }
 

@@ -222,6 +222,40 @@ class TACGen(Visitor[TACFuncEmitter, None]):
         mv.visitBranch(beginLabel)
         mv.visitLabel(breakLabel)
         mv.closeLoop()
+    
+    def visitContinue(self, stmt: Continue, mv: TACFuncEmitter) -> None:
+        mv.visitBranch(mv.getContinueLabel())
+
+    def visitFor(self, stmt: For, mv: TACFuncEmitter) -> None:
+        """
+        _T1 = 0
+        _T0 = _T1                 # int i = 0;
+        _L1:                          # begin label
+        _T2 = 5
+        _T3 = LT _T0, _T2
+        BEQZ _T3, _L3              # i < 5;
+        _L2:                          # loop label
+        _T4 = 1
+        _T5 = ADD _T0, _T4
+        _T0 = _T5                 # i = i + 1;
+        JUMP _L1
+        _L3:                          # break label
+        """
+        beginLabel = mv.freshLabel()
+        loopLabel = mv.freshLabel()
+        breakLabel = mv.freshLabel()
+        stmt.init.accept(self, mv)
+        mv.openLoop(breakLabel, loopLabel)
+        mv.visitLabel(beginLabel)
+        stmt.cond.accept(self, mv)
+        if stmt.cond.getattr("val") is not None:
+            mv.visitCondBranch(tacop.CondBranchOp.BEQ, stmt.cond.getattr("val"), breakLabel)
+        stmt.body.accept(self, mv)
+        mv.visitLabel(loopLabel)
+        stmt.update.accept(self, mv)
+        mv.visitBranch(beginLabel)
+        mv.visitLabel(breakLabel)
+        mv.closeLoop()
 
     def visitUnary(self, expr: Unary, mv: TACFuncEmitter) -> None:
         expr.operand.accept(self, mv)
@@ -260,10 +294,19 @@ class TACGen(Visitor[TACFuncEmitter, None]):
         )
 
     def visitCondExpr(self, expr: ConditionExpression, mv: TACFuncEmitter) -> None:
-        """
-        1. Refer to the implementation of visitIf and visitBinary.
-        """
-        raise NotImplementedError
+        expr.cond.accept(self, mv)
+        skipLabel = mv.freshLabel()
+        exitLabel = mv.freshLabel()
+        tempValue = mv.freshTemp()
+        mv.visitCondBranch(tacop.CondBranchOp.BEQ, expr.cond.getattr("val"), skipLabel)
+        expr.then.accept(self, mv)
+        mv.visitAssignment(tempValue, expr.then.getattr("val"))
+        mv.visitBranch(exitLabel)
+        mv.visitLabel(skipLabel)
+        expr.otherwise.accept(self, mv)
+        mv.visitAssignment(tempValue, expr.otherwise.getattr("val"))
+        mv.visitLabel(exitLabel)
+        expr.setattr('val', tempValue)
 
     def visitIntLiteral(self, expr: IntLiteral, mv: TACFuncEmitter) -> None:
         expr.setattr("val", mv.visitLoad(expr.value))

@@ -52,16 +52,23 @@ class Namer(Visitor[ScopeStack, None]):
     def visitReturn(self, stmt: Return, ctx :ScopeStack) -> None:
         stmt.expr.accept(self, ctx)
 
-    """
+    
     def visitFor(self, stmt: For, ctx :ScopeStack) -> None:
+        """
+        1. Open a local scope for stmt.init.
+        2. Visit stmt.init, stmt.cond, stmt.update.
+        3. Open a loop in ctx (for validity checking of break/continue)
+        4. Visit body of the loop.
+        5. Close the loop and the local scope.
+        """
+        with ctx.local():
+            stmt.init.accept(self, ctx)
+            stmt.cond.accept(self, ctx)
+            stmt.update.accept(self, ctx)
+            with ctx.loop():
+                stmt.body.accept(self, ctx)
 
-    1. Open a local scope for stmt.init.
-    2. Visit stmt.init, stmt.cond, stmt.update.
-    3. Open a loop in ctx (for validity checking of break/continue)
-    4. Visit body of the loop.
-    5. Close the loop and the local scope.
-    """
-
+    
     def visitIf(self, stmt: If, ctx :ScopeStack) -> None:
         stmt.cond.accept(self, ctx)
         stmt.then.accept(self, ctx)
@@ -82,13 +89,21 @@ class Namer(Visitor[ScopeStack, None]):
         if not in a loop:
             raise DecafBreakOutsideLoopError()
         """
-        raise NotImplementedError
+        if not ctx.inLoop():
+            raise DecafBreakOutsideLoopError()
 
     """
     def visitContinue(self, stmt: Continue, ctx :ScopeStack) -> None:
     
     1. Refer to the implementation of visitBreak.
     """
+    def visitContinue(self, stmt: Continue, ctx: ScopeStack) -> None:
+        """
+        1. Refer to the implementation of visitBreak.
+        """
+        if not ctx.inLoop():
+            raise DecafBreakOutsideLoopError()
+
 
     def visitDeclaration(self, decl: Declaration, ctx :ScopeStack) -> None:
         """
@@ -129,10 +144,9 @@ class Namer(Visitor[ScopeStack, None]):
         expr.rhs.accept(self, ctx)
 
     def visitCondExpr(self, expr: ConditionExpression, ctx :ScopeStack) -> None:
-        """
-        1. Refer to the implementation of visitBinary.
-        """
-        raise NotImplementedError
+        expr.cond.accept(self, ctx)
+        expr.then.accept(self, ctx)
+        expr.otherwise.accept(self, ctx)
 
     def visitIdentifier(self, ident: Identifier, ctx :ScopeStack) -> None:
         """

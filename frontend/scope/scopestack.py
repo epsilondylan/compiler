@@ -9,6 +9,7 @@ class ScopeStack:
         self.globalscope = globalscope
         self.stack_capacity = capacity
         self.repeat = 0
+        self.loopnum = 0
     
     def get_current_scope(self) -> Scope:
         if not self.stack:
@@ -35,6 +36,20 @@ class ScopeStack:
             if (looking_scope.containsKey(name)):
                 return looking_scope.get(name)
         return None
+    
+    def openLoop(self) -> None:
+        self.loopnum += 1
+
+    def closeLoop(self) -> None:
+        self.loopnum -= 1
+
+    def inLoop(self) -> None:
+        return self.loopnum > 0
+    
+    def loop(self):
+        self.openLoop()
+        self.innerstack += [self.closeLoop]
+        return self
 
     # To declare a symbol.
     def declare(self, symbol: Symbol) -> None:
