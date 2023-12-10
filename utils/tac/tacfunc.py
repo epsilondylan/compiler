@@ -1,15 +1,17 @@
 from utils.label.funclabel import FuncLabel
-
+from typing import List
 from .tacinstr import TACInstr
-
+from utils.tac.temp import Temp
 
 class TACFunc:
     def __init__(self, entry: FuncLabel, numArgs: int) -> None:
         self.entry = entry
         self.numArgs = numArgs
+        self.tempArgs: List[Temp] = []
         self.instrSeq = []
         self.tempUsed = 0
-
+        
+    
     def getInstrSeq(self) -> list[TACInstr]:
         return self.instrSeq
 
@@ -18,7 +20,10 @@ class TACFunc:
 
     def add(self, instr: TACInstr) -> None:
         self.instrSeq.append(instr)
-
+    
+    def addTempArgs(self, temp: Temp) -> None:
+        self.tempArgs.append(temp)
+     
     def printTo(self) -> None:
         for instr in self.instrSeq:
             if instr.isLabel():

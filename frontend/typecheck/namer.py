@@ -33,16 +33,24 @@ class Namer(Visitor[ScopeStack, None]):
         program.accept(self, ctx)
         return program
 
-    def visitProgram(self, program: Program, ctx :ScopeStack) -> None:
-        # Check if the 'main' function is missing
-        if not program.hasMainFunc():
-            raise DecafNoMainFuncError
+    def visitFunction(self, func: Function, ctx: ScopeStack) -> None:
+        symbol = FuncSymbol(func.ident.value, func.ret_t.type, ctx.get_current_scope())
+        for param in func.parameterList:
+            symbol.addParaType(param.var_t.type)
+        potential_sym = ctx.lookup(func.ident.value)
+        if ctx.findConflict(func.ident.value) and not (isinstance(potential_sym, FuncSymbol) and potential_sym == symbol):
+            raise DecafDeclConflictError(func.ident.value)
+        ctx.declare(symbol)
+        func.setattr('symbol', symbol)
+        if func.body is None:
+            return
+        symbol.define_function()
+        with ctx.local():
+            for parameter in func.parameterList:
+                parameter.accept(self, ctx)
+            for stmt in func.body.children:
+                stmt.accept(self, ctx)
 
-        for func in program.functions().values():
-            func.accept(self, ctx)
-
-    def visitFunction(self, func: Function, ctx :ScopeStack) -> None:
-        func.body.accept(self, ctx)
 
     def visitBlock(self, block: Block, ctx :ScopeStack) -> None:
         with ctx.local(): 
@@ -51,17 +59,31 @@ class Namer(Visitor[ScopeStack, None]):
 
     def visitReturn(self, stmt: Return, ctx :ScopeStack) -> None:
         stmt.expr.accept(self, ctx)
-
-    """
+    
+    def visitProgram(self, program: Program, ctx :ScopeStack) -> None:
+        # Check if the 'main' function is missing
+        if not program.hasMainFunc():
+            raise DecafNoMainFuncError
+        for children in program:
+            assert ctx.isGlobalScope()
+            children.accept(self, ctx)
+    
     def visitFor(self, stmt: For, ctx :ScopeStack) -> None:
+        """
+        1. Open a local scope for stmt.init.
+        2. Visit stmt.init, stmt.cond, stmt.update.
+        3. Open a loop in ctx (for validity checking of break/continue)
+        4. Visit body of the loop.
+        5. Close the loop and the local scope.
+        """
+        with ctx.local():
+            stmt.init.accept(self, ctx)
+            stmt.cond.accept(self, ctx)
+            stmt.update.accept(self, ctx)
+            with ctx.loop():
+                stmt.body.accept(self, ctx)
 
-    1. Open a local scope for stmt.init.
-    2. Visit stmt.init, stmt.cond, stmt.update.
-    3. Open a loop in ctx (for validity checking of break/continue)
-    4. Visit body of the loop.
-    5. Close the loop and the local scope.
-    """
-
+    
     def visitIf(self, stmt: If, ctx :ScopeStack) -> None:
         stmt.cond.accept(self, ctx)
         stmt.then.accept(self, ctx)
@@ -82,13 +104,21 @@ class Namer(Visitor[ScopeStack, None]):
         if not in a loop:
             raise DecafBreakOutsideLoopError()
         """
-        raise NotImplementedError
+        if not ctx.inLoop():
+            raise DecafBreakOutsideLoopError()
 
     """
     def visitContinue(self, stmt: Continue, ctx :ScopeStack) -> None:
     
     1. Refer to the implementation of visitBreak.
     """
+    def visitContinue(self, stmt: Continue, ctx: ScopeStack) -> None:
+        """
+        1. Refer to the implementation of visitBreak.
+        """
+        if not ctx.inLoop():
+            raise DecafBreakOutsideLoopError()
+
 
     def visitDeclaration(self, decl: Declaration, ctx :ScopeStack) -> None:
         """
@@ -97,10 +127,18 @@ class Namer(Visitor[ScopeStack, None]):
         3. Set the 'symbol' attribute of decl.
         4. If there is an initial value, visit it.
         """
+        
         if ctx.findConflict(decl.ident.value) is not None:
             symbol = ctx.findConflict(decl.ident.value)
+            newvar = VarSymbol(decl.ident.value, decl.var_t.type)
+            ctx.declare(newvar)
+            decl.setattr('symbol', newvar)
         else:
             symbol = ctx.lookup(decl.ident.value)
+            if(decl.getattr('symbol') is None):
+                newvar = VarSymbol(decl.ident.value, decl.var_t.type)
+                ctx.declare(newvar)
+                decl.setattr('symbol', newvar)
         if symbol is None:
             newvar = VarSymbol(decl.ident.value, decl.var_t.type)
             ctx.declare(newvar)
@@ -121,10 +159,9 @@ class Namer(Visitor[ScopeStack, None]):
         expr.rhs.accept(self, ctx)
 
     def visitCondExpr(self, expr: ConditionExpression, ctx :ScopeStack) -> None:
-        """
-        1. Refer to the implementation of visitBinary.
-        """
-        raise NotImplementedError
+        expr.cond.accept(self, ctx)
+        expr.then.accept(self, ctx)
+        expr.otherwise.accept(self, ctx)
 
     def visitIdentifier(self, ident: Identifier, ctx :ScopeStack) -> None:
         """

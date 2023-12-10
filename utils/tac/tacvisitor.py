@@ -22,6 +22,9 @@ class TACVisitor:
    def visitBranch(self, instr: Branch) -> None:
         self.visitOther(instr)
 
+   def visitCall(self, instr: Call) -> None:
+       self.visitOther(instr)
+
    def visitCondBranch(self, instr: CondBranch) -> None:
         self.visitOther(instr)
 

@@ -1,4 +1,4 @@
-from typing import Sequence, Tuple
+from typing import Sequence, Tuple, List, Dict
 
 from backend.asmemitter import AsmEmitter
 from utils.error import IllegalArgumentException
@@ -159,11 +159,14 @@ class RiscvSubroutineEmitter(SubroutineEmitter):
 
         # from temp to int
         # record where a temp is stored in the stack
-        self.offsets = {}
+        self.offsets: Dict[int, int] = {}
+
+        self.argOffset: Dict[int, int] = {}
+        for idx, temp in enumerate(self.info.argTemps[8:]):
+            self.argOffset[temp.index] = idx * 4
 
         self.printer.printLabel(info.funcLabel)
-
-        # in step9, step11 you can compute the offset of local array and parameters here
+        self.sp_offset = 0
 
     def emitComment(self, comment: str) -> None:
         # you can add some log here to help you debug
@@ -185,7 +188,7 @@ class RiscvSubroutineEmitter(SubroutineEmitter):
     # in step9, you need to think about the fuction parameters here
     def emitLoadFromStack(self, dst: Reg, src: Temp):
         if src.index not in self.offsets:
-            raise IllegalArgumentException()
+            pass
         else:
             self.buf.append(
                 Riscv.NativeLoadWord(dst, Riscv.SP, self.offsets[src.index])
@@ -199,10 +202,28 @@ class RiscvSubroutineEmitter(SubroutineEmitter):
     def emitLabel(self, label: Label):
         self.buf.append(Riscv.RiscvLabel(label).toNative([], []))
 
+    def adjustSP(self, delta: int):
+        self.sp_offset += delta
     
     def emitEnd(self):
         self.printer.printComment("start of prologue")
         self.printer.printInstr(Riscv.SPAdd(-self.nextLocalOffset))
+
+        # Stack Structure
+        """
+        Arg (len - 1)
+        ...
+        Arg 8
+        ------------- `self.nextLocalOffset`
+        SPILL END
+        ...
+        SPILL BEGIN
+        RA
+        CALLEE END
+        ...
+        CALLEE BEGIN
+        ------------- SP
+        """
 
         # in step9, you need to think about how to store RA here
         # you can get some ideas from how to save CalleeSaved regs
@@ -211,6 +232,10 @@ class RiscvSubroutineEmitter(SubroutineEmitter):
                 self.printer.printInstr(
                     Riscv.NativeStoreWord(Riscv.CalleeSaved[i], Riscv.SP, 4 * i)
                 )
+        # store RA
+        self.printer.printInstr(
+            Riscv.NativeStoreWord(Riscv.RA, Riscv.SP, 4 * len(Riscv.CalleeSaved))
+        )
 
         self.printer.printComment("end of prologue")
         self.printer.println("")
@@ -222,6 +247,18 @@ class RiscvSubroutineEmitter(SubroutineEmitter):
 
         # using asmcodeprinter to output the RiscV code
         for instr in self.buf:
+            # Print comment
+            if isinstance(instr, str):
+                self.printer.printComment(instr)
+                continue
+
+            # Now the nextLocalOffset have been determined (considering possible spills)
+            # update the positions of potential arguments
+            # well ... if there is too many arguments, we're doomed! (since lw.imm <= 2047)
+            if isinstance(instr, Riscv.NativeLoadWord) and instr.temp is not None:
+                assert instr.temp.index in self.argOffset
+                instr.offset += self.nextLocalOffset
+
             self.printer.printInstr(instr)
 
         self.printer.printComment("end of body")
@@ -231,6 +268,11 @@ class RiscvSubroutineEmitter(SubroutineEmitter):
             Label(LabelKind.TEMP, self.info.funcLabel.name + Riscv.EPILOGUE_SUFFIX)
         )
         self.printer.printComment("start of epilogue")
+
+        # Restore RA
+        self.printer.printInstr(
+            Riscv.NativeLoadWord(Riscv.RA, Riscv.SP, 4 * len(Riscv.CalleeSaved))
+        )
 
         for i in range(len(Riscv.CalleeSaved)):
             if Riscv.CalleeSaved[i].isUsed():

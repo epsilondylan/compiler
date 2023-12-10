@@ -42,7 +42,13 @@ class Visitor(Protocol[T, U]):  # type: ignore
 
     def visitWhile(self, that: While, ctx: T) -> Optional[U]:
         return self.visitOther(that, ctx)
-
+    
+    def visitFor(self, that: For, ctx: T) -> Optional[U]:
+        return self.visitOther(that, ctx)
+    
+    def visitContinue(self, that: Continue, ctx: T)-> Optional[U]:
+        return self.visitOther(that, ctx)
+    
     def visitBreak(self, that: Break, ctx: T) -> Optional[U]:
         return self.visitOther(that, ctx)
 
@@ -71,6 +77,12 @@ class Visitor(Protocol[T, U]):  # type: ignore
         return self.visitOther(that, ctx)
 
     def visitTInt(self, that: TInt, ctx: T) -> Optional[U]:
+        return self.visitOther(that, ctx)
+
+    def visitParameter(self, that: Parameter, ctx: T) -> Optional[U]:
+        return self.visitOther(that, ctx)
+
+    def visitCall(self, that: Call, ctx: T) -> Optional[U]:
         return self.visitOther(that, ctx)
 
 

@@ -4,6 +4,8 @@ from frontend.scope.scope import Scope
 
 from .symbol import *
 
+from utils.error import *
+
 """
 Function symbol, representing a function definition.
 """
@@ -34,3 +36,8 @@ class FuncSymbol(Symbol):
     # To get the parameters' type.
     def getParaType(self, id: int) -> DecafType:
         return self.para_type[id]
+    
+    def define_function(self):
+        if self.defined:
+            raise DecafFunctionDefinedTwiceError(self)
+        self.defined = True
