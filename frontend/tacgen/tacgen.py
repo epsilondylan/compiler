@@ -153,11 +153,11 @@ class Handler:
         self.labelManager = LabelManager()
         for func in funcs:
             self.funcs.append(func)
-            self.labelManager.getFuncLabel(func.ident.value)
+            self.labelManager.putFuncLabel(func.ident.value)
 
     def visitMainFunc(self) -> TACFuncEmitter:
         entry = MAIN_LABEL
-        return TACFuncEmitter(entry, 0, self.ctx)
+        return TACFuncEmitter(entry, 0, self.labelManager)
 
     def visitFunc(self, name: str, numArgs: int) -> TACFuncEmitter:
         entry = self.labelManager.getFuncLabel(name)
@@ -177,7 +177,7 @@ class TACGen(Visitor[TACFuncEmitter, None]):
             if astFunc.body is NULL:
                 continue
             argnum = len(astFunc.parameterList)
-            emitter = handler.visitFunc(FuncLabel(funcName), argnum)
+            emitter = handler.visitFunc(funcName, argnum)
             astFunc.accept(self, emitter)
             emitter.visitEnd()
         return handler.visitEnd()
