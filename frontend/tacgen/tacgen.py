@@ -1,5 +1,6 @@
+from __future__ import annotations
 from frontend.ast.node import T, Optional
-from frontend.ast.tree import T, Call, Function, Optional
+from frontend.ast.tree import T, Call, Function, Optional, NULL
 from frontend.ast import node
 from frontend.ast.tree import *
 from frontend.ast.visitor import T, Visitor
@@ -15,6 +16,7 @@ from utils.tac.tacinstr import *
 from utils.tac.tacfunc import TACFunc
 from utils.tac.tacprog import TACProg
 from utils.tac.tacvisitor import TACVisitor
+from typing import Any, Optional, Union, List, Tuple
 
 
 """
@@ -123,6 +125,7 @@ class TACFuncEmitter(TACVisitor):
         if (len(self.func.instrSeq) == 0) or (not self.func.instrSeq[-1].isReturn()):
             self.func.add(Return(None))
         self.func.tempUsed = self.getUsedTemp()
+        self.labelManager.funcs.append(self.func)
         return self.func
     
     def visitCall(self, func_label: Label, mid: Temp, parameterList: List[Temp]) -> None:
@@ -148,9 +151,10 @@ class TACFuncEmitter(TACVisitor):
 
 
 class Handler:
-    def __init__(self, funcs: List[Function]) -> None:
+    def __init__(self, funcs: List[Function], globalDecls: List[Tuple[str, Optional[int]]]) -> None:
         self.funcs = []
         self.labelManager = LabelManager()
+        self.globalDecls = globalDecls
         for func in funcs:
             self.funcs.append(func)
             self.labelManager.putFuncLabel(func.ident.value)
@@ -164,7 +168,7 @@ class Handler:
         return TACFuncEmitter(entry, numArgs, self.labelManager)
 
     def visitEnd(self) -> TACProg:
-        return TACProg(self.labelManager.funcs)
+        return TACProg(self.labelManager.funcs, self.globalDecls)
 
 class TACGen(Visitor[TACFuncEmitter, None]):
     def __init__(self) -> None:
@@ -172,7 +176,7 @@ class TACGen(Visitor[TACFuncEmitter, None]):
 
     # Entry of this phase
     def transform(self, program: Program) -> TACProg:
-        handler = Handler(program.functions().values())
+        handler = Handler(program.functions().values(),[(name, decl.getattr('symbol').initValue)for name, decl in program.globalDecls().items()])
         for funcName, astFunc in program.functions().items():
             if astFunc.body is NULL:
                 continue

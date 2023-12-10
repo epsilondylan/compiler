@@ -33,7 +33,10 @@ class BruteRegAlloc(RegAlloc):
         self.bindings = {}
         for reg in emitter.allocatableRegs:
             reg.used = False
-
+    def clearUsed(self):
+        for reg in self.emitter.allocatableRegs:  # init for each subroutine
+            reg.used = False
+    
     def accept(self, graph: CFG, info: SubroutineInfo) -> None:
         subEmitter = self.emitter.emitSubroutine(info)
         self.clearUsed()

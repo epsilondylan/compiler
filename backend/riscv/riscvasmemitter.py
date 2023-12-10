@@ -22,15 +22,25 @@ class RiscvAsmEmitter(AsmEmitter):
         self,
         allocatableRegs: list[Reg],
         callerSaveRegs: list[Reg],
+        globalDecls: List[Tuple[str, Optional[int]]],
     ) -> None:
         super().__init__(allocatableRegs, callerSaveRegs)
-
-    
         # the start of the asm code
         # int step10, you need to add the declaration of global var here
+        self.printer.println(".data")
+        for name, initial_val in filter(lambda x: x[1], globalDecls):
+            self.printer.printDATAWord(name, initial_val)
+
+        self.printer.println("")
+        self.printer.println(".bss")
+        for name, _ in filter(lambda x: not x[1], globalDecls):
+            self.printer.printBSS(name, 4)
+
+        self.printer.println("")
         self.printer.println(".text")
         self.printer.println(".global main")
         self.printer.println("")
+
 
     # transform tac instrs to RiscV instrs
     # collect some info which is saved in SubroutineInfo for SubroutineEmitter

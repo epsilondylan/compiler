@@ -48,6 +48,7 @@ def p_program_empty(p):
 def p_program_component(p):
     """
     program : program function
+    program : program declaration Semi
     """
     p[1] += [p[2]]
     p[0] = p[1]

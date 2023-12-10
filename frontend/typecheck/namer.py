@@ -131,16 +131,31 @@ class Namer(Visitor[ScopeStack, None]):
         if ctx.findConflict(decl.ident.value) is not None:
             symbol = ctx.findConflict(decl.ident.value)
             newvar = VarSymbol(decl.ident.value, decl.var_t.type)
+            if ctx.isGlobalScope():
+                newvar.isGlobal = True
+                if decl.init_expr is not NULL:
+                    assert isinstance(decl.init_expr, IntLiteral)
+                    newvar.initValue = decl.init_expr.value
             ctx.declare(newvar)
             decl.setattr('symbol', newvar)
         else:
             symbol = ctx.lookup(decl.ident.value)
             if(decl.getattr('symbol') is None):
                 newvar = VarSymbol(decl.ident.value, decl.var_t.type)
+                if ctx.isGlobalScope():
+                    newvar.isGlobal = True
+                    if decl.init_expr is not NULL:
+                        assert isinstance(decl.init_expr, IntLiteral)
+                        newvar.initValue = decl.init_expr.value
                 ctx.declare(newvar)
                 decl.setattr('symbol', newvar)
         if symbol is None:
             newvar = VarSymbol(decl.ident.value, decl.var_t.type)
+            if ctx.isGlobalScope():
+                    newvar.isGlobal = True
+                    if decl.init_expr is not NULL:
+                        assert isinstance(decl.init_expr, IntLiteral)
+                        newvar.initValue = decl.init_expr.value
             ctx.declare(newvar)
             decl.setattr('symbol', newvar)
         if decl.init_expr is not NULL:
