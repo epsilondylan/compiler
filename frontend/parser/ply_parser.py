@@ -49,7 +49,7 @@ def p_program_component(p):
     """
     program : program function
     """
-    p[1] = [p[1],p[2]]
+    p[1] += [p[2]]
     p[0] = p[1]
 
 def p_type(p):

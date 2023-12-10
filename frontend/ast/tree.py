@@ -68,11 +68,9 @@ class Program(ListNode["Function"]):
     def accept(self, v: Visitor[T, U], ctx: T):
         return v.visitProgram(self, ctx)
 
-    def add_children(self, other: List[Union[Function, Declaration]]) -> "Program":
-        """
-        Returns a new Program instance with added children.
-        """
-        return Program(*self.children, *other)
+    def __iadd__(self, other: List[Union[Function, Declaration]]):
+        self.children += other
+        return self
 
     
 
@@ -140,7 +138,7 @@ class Return(Statement):
     def accept(self, v: Visitor[T, U], ctx: T):
         return v.visitReturn(self, ctx)
 
-
+    
 class If(Statement):
     """
     AST node of if statement.
