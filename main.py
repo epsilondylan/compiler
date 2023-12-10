@@ -48,10 +48,8 @@ def step_tac(p: Program):
     p = namer.transform(p)
     typer = Typer()
     p = typer.transform(p)
-
     tacgen = TACGen()
     tac_prog = tacgen.transform(p)
-
     return tac_prog
 
 

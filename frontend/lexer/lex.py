@@ -31,7 +31,7 @@ t_RBrace = "}"
 
 t_Colon = ":"
 t_Question = "?"
-
+t_Comma = ","
 t_Plus = "+"
 t_Minus = "-"
 t_Mul = "*"

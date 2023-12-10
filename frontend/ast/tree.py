@@ -6,7 +6,7 @@ Modify this file if you want to add a new AST node.
 
 from __future__ import annotations
 
-from typing import Any, Generic, Optional, TypeVar, Union
+from typing import Any, Generic, Optional, List, TypeVar, Union
 
 from frontend.type import INT, DecafType
 from utils import T, U
@@ -56,6 +56,9 @@ class Program(ListNode["Function"]):
     def functions(self) -> dict[str, Function]:
         return {func.ident.value: func for func in self if isinstance(func, Function)}
 
+    def globalDecls(self) -> dict[str, Declaration]:
+        return {decl.ident.value: decl for decl in self if isinstance(decl, Declaration)}
+
     def hasMainFunc(self) -> bool:
         return "main" in self.functions()
 
@@ -65,6 +68,13 @@ class Program(ListNode["Function"]):
     def accept(self, v: Visitor[T, U], ctx: T):
         return v.visitProgram(self, ctx)
 
+    def add_children(self, other: List[Union[Function, Declaration]]) -> "Program":
+        """
+        Returns a new Program instance with added children.
+        """
+        return Program(*self.children, *other)
+
+    
 
 class Function(Node):
     """
@@ -76,17 +86,19 @@ class Function(Node):
         ret_t: TypeLiteral,
         ident: Identifier,
         body: Block,
+        parameterList: List[Parameter],
     ) -> None:
         super().__init__("function")
         self.ret_t = ret_t
         self.ident = ident
         self.body = body
-
+        self.parameterList = parameterList
     def __getitem__(self, key: int) -> Node:
         return (
             self.ret_t,
             self.ident,
             self.body,
+            *self.parameterList
         )[key]
 
     def __len__(self) -> int:
@@ -276,7 +288,7 @@ class Declaration(Node):
     def accept(self, v: Visitor[T, U], ctx: T):
         return v.visitDeclaration(self, ctx)
 
-
+    
 class Expression(Node):
     """
     Abstract type that represents an evaluable expression.
@@ -312,6 +324,31 @@ class Unary(Expression):
             self.op.value,
             self.operand,
         )
+
+class Parameter(Declaration):
+    def __init__(self, var_t: TypeLiteral, ident: Identifier):
+        super().__init__(var_t, ident)
+        self.var_t = var_t
+        self.ident = ident
+
+    def accept(self, v: Visitor[T, U], ctx: T) -> Optional[U]:
+        return v.visitParameter(self, ctx)
+
+
+class Call(Expression):
+    def __init__(self, ident: Identifier, argument_list: List[Expression]) -> None:
+        super().__init__("call")
+        self.ident = ident
+        self.argument_list = argument_list
+
+    def __getitem__(self, key: int) -> Node:
+        return (self.ident, *self.argument_list)[key]
+
+    def __len__(self) -> int:
+        return 1 + len(self.argument_list)
+
+    def accept(self, v: Visitor[T, U], ctx: T):
+        return v.visitCall(self, ctx)
 
 
 class Binary(Expression):

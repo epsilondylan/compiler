@@ -64,7 +64,11 @@ class DecafGlobalVarDefinedTwiceError(Exception):
         super().__init__(
             "Semantic error: global variable '%s' has been defined twice" % name
         )
-
+class DecafFunctionDefinedTwiceError(Exception):
+    def __init__(self, name: str) -> None:
+        super().__init__(
+            "Semantic error: function '%s' has been defined twice" % name
+        )
 
 class DecafGlobalVarBadInitValueError(Exception):
     def __init__(self, name: str) -> None:

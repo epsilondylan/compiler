@@ -1,5 +1,5 @@
 from enum import Enum, auto, unique
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, List
 
 from utils.label.label import Label
 from utils.tac.nativeinstr import NativeInstr
@@ -11,6 +11,16 @@ from .temp import Temp
 
 
 class TACInstr:
+    @classmethod
+    def fromNative(cls: type):
+        class _TACInstr(cls):
+            def getRead(self) -> list[int]:
+                return cls.getRead(self)
+
+            def getWritten(self) -> list[int]:
+                return cls.getWritten(self)
+
+        return _TACInstr
     def __init__(
         self,
         kind: InstrKind,
@@ -37,7 +47,17 @@ class TACInstr:
 
     def isReturn(self) -> bool:
         return self.kind == InstrKind.RET
+    
+    def fromNative(cls: type):
+        class _TACInstr(cls):
+            def getRead(self) -> list[int]:
+                return cls.getRead(self)
 
+            def getWritten(self) -> list[int]:
+                return cls.getWritten(self)
+
+        return _TACInstr
+    
     def toNative(self, dstRegs: list[Reg], srcRegs: list[Reg]) -> NativeInstr:
         oldDsts = dstRegs
         oldSrcs = srcRegs
@@ -162,7 +182,16 @@ class CondBranch(TACInstr):
     def accept(self, v: TACVisitor) -> None:
         v.visitCondBranch(self)
 
+class Call(TACInstr):
+    def __init__(self, func_label: Label, dst: Temp, TempParms: List[Temp]):
+        super(Call, self).__init__(InstrKind.SEQ, [dst], TempParms, func_label)
 
+    def accept(self, v: TACVisitor) -> None:
+        return v.visitCall(self)
+
+    def __str__(self) -> str:
+        return f"{self.dsts[0]} = CALL {self.label.name} ({self.srcs})"
+    
 # Return instruction.
 class Return(TACInstr):
     def __init__(self, value: Optional[Temp]) -> None:

@@ -33,16 +33,24 @@ class Namer(Visitor[ScopeStack, None]):
         program.accept(self, ctx)
         return program
 
-    def visitProgram(self, program: Program, ctx :ScopeStack) -> None:
-        # Check if the 'main' function is missing
-        if not program.hasMainFunc():
-            raise DecafNoMainFuncError
+    def visitFunction(self, func: Function, ctx: ScopeStack) -> None:
+        symbol = FuncSymbol(func.ident.value, func.ret_t.type, ctx.get_current_scope())
+        for param in func.parameterList:
+            symbol.addParaType(param.var_t.type)
+        potential_sym = ctx.lookup(func.ident.value)
+        if ctx.findConflict(func.ident.value) and not (isinstance(potential_sym, FuncSymbol) and potential_sym == symbol):
+            raise DecafDeclConflictError(func.ident.value)
+        ctx.declare(symbol)
+        func.setattr('symbol', symbol)
+        if func.body is None:
+            return
+        symbol.define_function()
+        with ctx.local():
+            for parameter in func.parameterList:
+                parameter.accept(self, ctx)
+            for stmt in func.body.children:
+                stmt.accept(self, ctx)
 
-        for func in program.functions().values():
-            func.accept(self, ctx)
-
-    def visitFunction(self, func: Function, ctx :ScopeStack) -> None:
-        func.body.accept(self, ctx)
 
     def visitBlock(self, block: Block, ctx :ScopeStack) -> None:
         with ctx.local(): 
@@ -51,7 +59,14 @@ class Namer(Visitor[ScopeStack, None]):
 
     def visitReturn(self, stmt: Return, ctx :ScopeStack) -> None:
         stmt.expr.accept(self, ctx)
-
+    
+    def visitProgram(self, program: Program, ctx :ScopeStack) -> None:
+        # Check if the 'main' function is missing
+        if not program.hasMainFunc():
+            raise DecafNoMainFuncError
+        for children in program:
+            assert ctx.isGlobalScope()
+            children.accept(self, ctx)
     
     def visitFor(self, stmt: For, ctx :ScopeStack) -> None:
         """

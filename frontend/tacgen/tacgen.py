@@ -1,10 +1,12 @@
-from frontend.ast.node import Optional
-from frontend.ast.tree import Function, Optional
+from frontend.ast.node import T, Optional
+from frontend.ast.tree import T, Call, Function, Optional
 from frontend.ast import node
 from frontend.ast.tree import *
-from frontend.ast.visitor import Visitor
+from frontend.ast.visitor import T, Visitor
 from frontend.symbol.varsymbol import VarSymbol
 from frontend.type.array import ArrayType
+from utils.label.funclabel import *
+from utils.label.label import Label, LabelKind
 from utils.label.blocklabel import BlockLabel
 from utils.label.funclabel import FuncLabel
 from utils.tac import tacop
@@ -27,8 +29,16 @@ class LabelManager:
     """
 
     def __init__(self):
-        self.nextTempLabelId = 0
+        self.labels = {}
+        self.funcs = []
+        self.nextTempLabelId = 1
 
+    def putFuncLabel(self, name: str) -> None:
+        self.labels[name] = FuncLabel(name)
+
+    def getFuncLabel(self, name: str) -> FuncLabel:
+        return self.labels[name]
+    
     def freshLabel(self) -> BlockLabel:
         self.nextTempLabelId += 1
         return BlockLabel(str(self.nextTempLabelId))
@@ -40,13 +50,12 @@ class TACFuncEmitter(TACVisitor):
     """
 
     def __init__(
-        self, entry: FuncLabel, numArgs: int, labelManager: LabelManager
+        self, entry: FuncLabel, numArgs: int, labelManager: LabelManager,
     ) -> None:
         self.labelManager = labelManager
         self.func = TACFunc(entry, numArgs)
         self.visitLabel(entry)
         self.nextTempId = 0
-
         self.continueLabelStack = []
         self.breakLabelStack = []
 
@@ -59,11 +68,12 @@ class TACFuncEmitter(TACVisitor):
     # To get a fresh new label (for jumping and branching, etc).
     def freshLabel(self) -> Label:
         return self.labelManager.freshLabel()
-
+    
     # To count how many temporary variables have been used.
     def getUsedTemp(self) -> int:
         return self.nextTempId
-
+    
+    
     # In fact, the following methods can be named 'appendXXX' rather than 'visitXXX'.
     # E.g., by calling 'visitAssignment', you add an assignment instruction at the end of current function.
     def visitAssignment(self, dst: Temp, src: Temp) -> Temp:
@@ -114,6 +124,9 @@ class TACFuncEmitter(TACVisitor):
             self.func.add(Return(None))
         self.func.tempUsed = self.getUsedTemp()
         return self.func
+    
+    def visitCall(self, func_label: Label, mid: Temp, parameterList: List[Temp]) -> None:
+        self.func.add(Call(func_label, mid, parameterList))
 
     # To open a new loop (for break/continue statements)
     def openLoop(self, breakLabel: Label, continueLabel: Label) -> None:
@@ -134,17 +147,40 @@ class TACFuncEmitter(TACVisitor):
         return self.continueLabelStack[-1]
 
 
+class Handler:
+    def __init__(self, funcs: List[Function]) -> None:
+        self.funcs = []
+        self.labelManager = LabelManager()
+        for func in funcs:
+            self.funcs.append(func)
+            self.labelManager.getFuncLabel(func.ident.value)
+
+    def visitMainFunc(self) -> TACFuncEmitter:
+        entry = MAIN_LABEL
+        return TACFuncEmitter(entry, 0, self.ctx)
+
+    def visitFunc(self, name: str, numArgs: int) -> TACFuncEmitter:
+        entry = self.labelManager.getFuncLabel(name)
+        return TACFuncEmitter(entry, numArgs, self.labelManager)
+
+    def visitEnd(self) -> TACProg:
+        return TACProg(self.labelManager.funcs)
+
 class TACGen(Visitor[TACFuncEmitter, None]):
+    def __init__(self) -> None:
+        pass
+
     # Entry of this phase
     def transform(self, program: Program) -> TACProg:
-        labelManager = LabelManager()
-        tacFuncs = []
+        handler = Handler(program.functions().values())
         for funcName, astFunc in program.functions().items():
-            # in step9, you need to use real parameter count
-            emitter = TACFuncEmitter(FuncLabel(funcName), 0, labelManager)
-            astFunc.body.accept(self, emitter)
-            tacFuncs.append(emitter.visitEnd())
-        return TACProg(tacFuncs)
+            if astFunc.body is NULL:
+                continue
+            argnum = len(astFunc.parameterList)
+            emitter = handler.visitFunc(FuncLabel(funcName), argnum)
+            astFunc.accept(self, emitter)
+            emitter.visitEnd()
+        return handler.visitEnd()
 
     def visitBlock(self, block: Block, mv: TACFuncEmitter) -> None:
         for child in block:
@@ -292,6 +328,27 @@ class TACGen(Visitor[TACFuncEmitter, None]):
         expr.setattr(
             "val", mv.visitBinary(op, expr.lhs.getattr("val"), expr.rhs.getattr("val"))
         )
+  
+    def visitFunction(self, func: Function, mv: TACFuncEmitter) -> None:
+        for param in func.parameterList:
+            param.accept(self, mv)
+        func.body.accept(self, mv)
+    
+    def visitCall(self, call: Call, mv: TACFuncEmitter) -> None:
+        param_temp = []
+        for arg in call.argument_list:
+            arg.accept(self, mv)
+            if not (arg.getattr('val')):
+                raise SyntaxError('Error in arg fetching!')
+            param_temp.append(arg.getattr('val'))
+        ret = mv.freshTemp()
+        call.setattr('val', ret)
+        func_label = mv.labelManager.getFuncLabel(call.ident.value)
+        mv.visitCall(func_label, ret, param_temp)
+    
+    def visitParameter(self, that: Parameter, mv: TACFuncEmitter) -> None:
+        temp = self.visitDeclaration(that, mv)
+        mv.func.addTempArgs(temp)
 
     def visitCondExpr(self, expr: ConditionExpression, mv: TACFuncEmitter) -> None:
         expr.cond.accept(self, mv)
@@ -310,3 +367,4 @@ class TACGen(Visitor[TACFuncEmitter, None]):
 
     def visitIntLiteral(self, expr: IntLiteral, mv: TACFuncEmitter) -> None:
         expr.setattr("val", mv.visitLoad(expr.value))
+   
