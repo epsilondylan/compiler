@@ -9,6 +9,7 @@ from backend.subroutineemitter import SubroutineEmitter
 from backend.subroutineinfo import SubroutineInfo
 from utils.riscv import Riscv
 from utils.tac.reg import Reg
+from utils.error import *
 from utils.tac.temp import Temp
 
 """
@@ -33,23 +34,27 @@ class BruteRegAlloc(RegAlloc):
         self.bindings = {}
         for reg in emitter.allocatableRegs:
             reg.used = False
-    def clearUsed(self):
-        for reg in self.emitter.allocatableRegs:  # init for each subroutine
-            reg.used = False
     
     def accept(self, graph: CFG, info: SubroutineInfo) -> None:
         subEmitter = self.emitter.emitSubroutine(info)
-        self.clearUsed()
+        for reg in self.emitter.allocatableRegs:
+            reg.used = False
 
-        # bind (actually stash) A0 ~ A7
-        # other args are marked in `RiscvSubroutineEmitter.argOffset`
+
         for temp, reg in zip(subEmitter.info.argTemps, Riscv.ArgRegs):
-            self.bind(temp, reg)
-        if len(graph) > 0:
-            for tempindex in graph.nodes[0].liveIn:
-                if tempindex in self.bindings:
+            if(reg is not None):
+                self.bind(temp, reg)
+            else:
+                raise RuntimeError("No available reg for args")
+
+        if (len(graph) > 0 and len(graph.nodes[0].liveIn)>0) :
+            for tempindex in graph.nodes[0].liveIn:#Live args on stack!
+                if self.bindings.get(tempindex) is not None:
                     subEmitter.emitStoreToStack(self.bindings.get(tempindex))
-        self.restoreBindings()
+        
+        self.bindings.clear()
+        for reg in self.emitter.allocatableRegs:
+            reg.occupied = False
         
         for bb in graph.iterator():
             # you need to think more here
@@ -70,74 +75,56 @@ class BruteRegAlloc(RegAlloc):
             self.bindings[temp.index].occupied = False
             self.bindings.pop(temp.index)
     
-    def restoreBindings(self):
+
+    def localAlloc(self, bb: BasicBlock, subEmitter: SubroutineEmitter):
         self.bindings.clear()
         for reg in self.emitter.allocatableRegs:
             reg.occupied = False
-
-    def localAlloc(self, bb: BasicBlock, subEmitter: SubroutineEmitter):
-        self.restoreBindings()
         # in step9, you may need to think about how to store callersave regs here
-        if bb.kind == BlockKind.CALL:
-            assert len(bb.locs) == 1
-            loc = bb.locs[0]
-            call = loc.instr
-
-            # Prepare other arguments
-            reg = Riscv.T0
-            remain_args_count = len(call.srcs) - 8
-            if remain_args_count > 0:
-                subEmitter.emitNative(Riscv.SPAdd(-4 * remain_args_count))
-                subEmitter.adjustSP(-4 * remain_args_count)
-                for idx, temp in enumerate(call.srcs[8:]):  # to regs
-                    subEmitter.emitComment(
-                        "  PARAM BORROW: allocate {} to {}  (read: {}):".format(
-                            str(temp), str(reg), str(True)
-                        )
-                    )
-                    subEmitter.emitLoadFromStack(reg, temp)
-                    assert not reg.occupied, f"{reg}, {reg.temp}"
-                    self.bind(temp, reg)
-                    subEmitter.emitNative(Riscv.NativeStoreWord(reg, Riscv.SP, 4 * idx))
-                    self.unbind(temp)
-
-            # Prepare arguments [0, 7]
-            for temp, reg in zip(call.srcs, Riscv.ArgRegs):
-                subEmitter.emitComment(
-                    "  PARAM DIRECT: allocate {} to {}  (read: {}):".format(
-                        str(temp), str(reg), str(True)
-                    )
-                )
-                subEmitter.emitLoadFromStack(reg, temp)
-                assert not reg.occupied
-                self.bind(temp, reg)
-
-            # Function call
-            subEmitter.emitComment(str(call))
-            subEmitter.emitNative(call.toNative(call.dsts, call.dsts))
-
-            # Clean up stack
-            if remain_args_count > 0:
-                subEmitter.emitNative(Riscv.SPAdd(4 * remain_args_count))
-                subEmitter.adjustSP(4 * remain_args_count)
-
-            # Store return value
-            if len(call.srcs) > 0:
-                self.unbind(call.srcs[0])
-            self.bind(call.dsts[0], Riscv.A0)
-            subEmitter.emitStoreToStack(Riscv.A0)
-        else:
+        
+        if bb.kind != BlockKind.CALL:
             for loc in bb.allSeq():
                 subEmitter.emitComment(str(loc.instr))
-
                 self.allocForLoc(loc, subEmitter)
-
+            
             for tempindex in bb.liveOut:
                 if tempindex in self.bindings:
                     subEmitter.emitStoreToStack(self.bindings.get(tempindex))
-
+            
             if (not bb.isEmpty()) and (bb.kind not in {BlockKind.CONTINUOUS, BlockKind.CALL}):
                 self.allocForLoc(bb.locs[len(bb.locs) - 1], subEmitter)
+        
+        else:
+            if len(bb.locs[0].instr.srcs)  > 8:
+                subEmitter.emitNative(Riscv.SPAdd(-4 * (len(bb.locs[0].instr.srcs)-8)))
+                subEmitter.adjustSP(-(len(bb.locs[0].instr.srcs)-8) * 4)
+                
+                for temp in bb.locs[0].instr.srcs[8:]:
+                    subEmitter.emitLoadFromStack(Riscv.T0, temp)
+                    self.bind(temp, Riscv.T0)
+                    
+                    subEmitter.emitNative(Riscv.NativeStoreWord(reg, Riscv.T0, 4 * temp.index))
+                    self.unbind(temp)
+            
+            for temp, reg in zip(bb.locs[0].instr.srcs, Riscv.ArgRegs):
+                subEmitter.emitLoadFromStack(reg, temp)
+                
+                if reg.occupied:
+                    raise(DecafBadFuncCallError('No reg can be used in func'))
+                
+                self.bind(temp, reg)
+            
+            subEmitter.emitNative(bb.locs[0].instr.toNative(bb.locs[0].instr.dsts, bb.locs[0].instr.dsts))
+            
+            if len(bb.locs[0].instr.srcs) > 8:
+                subEmitter.emitNative(Riscv.SPAdd(4 * (len(bb.locs[0].instr.srcs)-8)))
+                subEmitter.adjustSP(4 * (len(bb.locs[0].instr.srcs)-8))
+            
+            if len(bb.locs[0].instr.srcs) > 0:
+                self.unbind(bb.locs[0].instr.srcs[0])
+            
+            self.bind(bb.locs[0].instr.dsts[0], Riscv.A0)
+            subEmitter.emitStoreToStack(Riscv.A0)
 
     def allocForLoc(self, loc: Loc, subEmitter: SubroutineEmitter):
         instr = loc.instr

@@ -13,6 +13,7 @@ from utils import T, U
 
 from .node import NULL, BinaryOp, Node, UnaryOp
 from .visitor import Visitor, accept
+import copy
 
 _T = TypeVar("_T", bound=Node)
 U = TypeVar("U", covariant=True)
@@ -67,10 +68,17 @@ class Program(ListNode["Function"]):
 
     def accept(self, v: Visitor[T, U], ctx: T):
         return v.visitProgram(self, ctx)
+    
+    def __add__(self, other: List[Union[Function, Declaration]]):
+        if(len(other) > 0 and isinstance(other[0],Union[Function,Declaration])):
+            new_instance = copy.deepcopy(self)
+            new_instance.children += other
+            return new_instance
 
     def __iadd__(self, other: List[Union[Function, Declaration]]):
-        self.children += other
-        return self
+        if(len(other) > 0 and isinstance(other[0],Union[Function,Declaration])):
+            self.children += other
+            return self
 
     
 
@@ -81,19 +89,20 @@ class Function(Node):
 
     def __init__(
         self,
-        ret_t: TypeLiteral,
+        rettype: TypeLiteral,
         ident: Identifier,
         body: Block,
         parameterList: List[Parameter],
     ) -> None:
         super().__init__("function")
-        self.ret_t = ret_t
+        self.rettype = rettype
         self.ident = ident
         self.body = body
         self.parameterList = parameterList
+    
     def __getitem__(self, key: int) -> Node:
         return (
-            self.ret_t,
+            self.rettype,
             self.ident,
             self.body,
             *self.parameterList
@@ -268,17 +277,17 @@ class Declaration(Node):
 
     def __init__(
         self,
-        var_t: TypeLiteral,
+        var_type: TypeLiteral,
         ident: Identifier,
         init_expr: Optional[Expression] = None,
     ) -> None:
         super().__init__("declaration")
-        self.var_t = var_t
+        self.var_type = var_type
         self.ident = ident
         self.init_expr = init_expr or NULL
 
     def __getitem__(self, key: int) -> Node:
-        return (self.var_t, self.ident, self.init_expr)[key]
+        return (self.var_type, self.ident, self.init_expr)[key]
 
     def __len__(self) -> int:
         return 3
@@ -324,9 +333,9 @@ class Unary(Expression):
         )
 
 class Parameter(Declaration):
-    def __init__(self, var_t: TypeLiteral, ident: Identifier):
-        super().__init__(var_t, ident)
-        self.var_t = var_t
+    def __init__(self, var_type: TypeLiteral, ident: Identifier):
+        super().__init__(var_type, ident)
+        self.var_type = var_type
         self.ident = ident
 
     def accept(self, v: Visitor[T, U], ctx: T) -> Optional[U]:
@@ -339,13 +348,13 @@ class Call(Expression):
         self.ident = ident
         self.argument_list = argument_list
 
-    def __getitem__(self, key: int) -> Node:
+    def __getitem__(self, key):
         return (self.ident, *self.argument_list)[key]
 
-    def __len__(self) -> int:
+    def __len__(self):
         return 1 + len(self.argument_list)
 
-    def accept(self, v: Visitor[T, U], ctx: T):
+    def accept(self, v: Visitor[T, U], ctx: T) -> Optional[U]:
         return v.visitCall(self, ctx)
 
 

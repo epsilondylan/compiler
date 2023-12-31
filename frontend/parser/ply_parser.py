@@ -59,57 +59,58 @@ def p_type(p):
     """
     p[0] = TInt()
 
+def p_function_delc_only(p):
+    """
+    function : type Identifier LParen para_list RParen Semi
+    """
+    p[0] = Function(p[1], p[2], NULL, p[4])
+
 def p_function_parameter_definition(p):
     """
     parameter : type Identifier
     """
     p[0] = [Parameter(*p[1:])]
 
-def p_function_parameter_list_empty(p):
+def p_function_emptyparam(p):
     """
-    parameter_list : empty
+    para_list : empty
     """
     p[0] = []
 
-def p_function_parameter_list_single(p):
+def p_function_singleparam(p):
     """
-    parameter_list : parameter
+    para_list : parameter
     """
     p[0] = p[1]
 
-def p_function_parameter_list_component(p):
+def p_function_para_list_iterate(p):
     """
-    parameter_list : parameter Comma parameter_list
+    para_list : parameter Comma para_list
     """
     p[0] = p[1] + p[3]
 
 def p_function_delc_def(p):
     """
-    function : type Identifier LParen parameter_list RParen LBrace block RBrace
+    function : type Identifier LParen para_list RParen LBrace block RBrace
     """
     p[0] = Function(p[1], p[2], p[7], p[4])
 
-def p_function_delc_only(p):
-    """
-    function : type Identifier LParen parameter_list RParen Semi
-    """
-    p[0] = Function(p[1], p[2], NULL, p[4])
 
-def p_call_expression_list_empty(p):
+def p_call_expression_empty(p):
     """
-    expression_list : empty
+    expr_list : empty
     """
     p[0] = []
 
-def p_call_expression_list_single(p):
+def p_call_expression_single(p):
     """
-    expression_list : expression
+    expr_list : expression
     """
     p[0] = [p[1]]
 
-def p_call_expression_list_component(p):
+def p_call_expression_iterate(p):
     """
-    expression_list : expression_list Comma expression
+    expr_list : expr_list Comma expression
     """
     p[0] = p[1] + [p[3]]
 
@@ -266,7 +267,7 @@ def p_expression_precedence(p):
 
 def p_postfix_call(p):
     """
-    postfix : Identifier LParen expression_list RParen
+    postfix : Identifier LParen expr_list RParen
     """
     p[0] = Call(p[1], p[3])
 

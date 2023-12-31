@@ -128,8 +128,8 @@ class TACFuncEmitter(TACVisitor):
         self.labelManager.funcs.append(self.func)
         return self.func
     
-    def visitCall(self, func_label: Label, mid: Temp, parameterList: List[Temp]) -> None:
-        self.func.add(Call(func_label, mid, parameterList))
+    def visitCall(self, funcLabel: Label, mid: Temp, parameterList: List[Temp]) -> None:
+        self.func.add(Call(funcLabel, mid, parameterList))
 
     # To open a new loop (for break/continue statements)
     def openLoop(self, breakLabel: Label, continueLabel: Label) -> None:
@@ -148,7 +148,6 @@ class TACFuncEmitter(TACVisitor):
     # To get the label for 'continue' in the current loop.
     def getContinueLabel(self) -> Label:
         return self.continueLabelStack[-1]
-
 
 class Handler:
     def __init__(self, funcs: List[Function], globalDecls: List[Tuple[str, Optional[int]]]) -> None:
@@ -201,9 +200,10 @@ class TACGen(Visitor[TACFuncEmitter, None]):
         """
         1. Set the 'val' attribute of ident as the temp variable of the 'symbol' attribute of ident.
         """
-        ident.setattr('val',ident.getattr('symbol').temp)
 
-    def visitDeclaration(self, decl: Declaration, mv: TACFuncEmitter) -> None:
+        ident.setattr('val', ident.getattr('symbol').temp)
+
+    def visitDeclaration(self, decl: Declaration, mv: TACFuncEmitter) -> Optional[Temp]:
         """
         1. Get the 'symbol' attribute of decl.
         2. Use mv.freshTemp to get a new temp variable for this symbol.
@@ -215,6 +215,7 @@ class TACGen(Visitor[TACFuncEmitter, None]):
         if decl.init_expr is not NULL:
             decl.init_expr.accept(self, mv)
             mv.visitAssignment(temp, decl.init_expr.getattr('val'))
+        return temp
 
     def visitAssignment(self, expr: Assignment, mv: TACFuncEmitter) -> None:
         """
@@ -223,8 +224,9 @@ class TACGen(Visitor[TACFuncEmitter, None]):
         3. Set the 'val' attribute of expr as the value of assignment instruction.
         """
         expr.rhs.accept(self, mv)
+        assert isinstance(expr.lhs, Identifier)
         expr.lhs.accept(self, mv)
-        expr.setattr('val',mv.visitAssignment(expr.lhs.getattr('val'),expr.rhs.getattr('val')))
+        expr.setattr('val',mv.visitAssignment(expr.lhs.getattr('val'),  expr.rhs.getattr('val')))
 
     def visitIf(self, stmt: If, mv: TACFuncEmitter) -> None:
         stmt.cond.accept(self, mv)
@@ -347,9 +349,9 @@ class TACGen(Visitor[TACFuncEmitter, None]):
             param_temp.append(arg.getattr('val'))
         ret = mv.freshTemp()
         call.setattr('val', ret)
-        func_label = mv.labelManager.getFuncLabel(call.ident.value)
-        mv.visitCall(func_label, ret, param_temp)
-    
+        funcLabel = mv.labelManager.getFuncLabel(call.ident.value)
+        mv.visitCall(funcLabel, ret, param_temp)
+ 
     def visitParameter(self, that: Parameter, mv: TACFuncEmitter) -> None:
         temp = self.visitDeclaration(that, mv)
         mv.func.addTempArgs(temp)
@@ -371,4 +373,3 @@ class TACGen(Visitor[TACFuncEmitter, None]):
 
     def visitIntLiteral(self, expr: IntLiteral, mv: TACFuncEmitter) -> None:
         expr.setattr("val", mv.visitLoad(expr.value))
-   

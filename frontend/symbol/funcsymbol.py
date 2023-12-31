@@ -38,7 +38,3 @@ class FuncSymbol(Symbol):
     def getParaType(self, id: int) -> DecafType:
         return self.para_type[id]
     
-    def define_function(self):
-        if self.defined:
-            raise DecafFunctionDefinedTwiceError(self)
-        self.defined = True

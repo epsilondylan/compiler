@@ -1,0 +1,91 @@
+
+    .data
+    
+    .bss
+    
+    .text
+    .global main
+    
+sum:
+    # start of prologue
+    addi sp, sp, -56
+    sw ra, 44(sp)
+    # end of prologue
+    
+    # start of body
+    sw a0, 48(sp)
+    sw a1, 52(sp)
+    lw t0, 48(sp)
+    lw t1, 52(sp)
+    add t2, t0, t1
+    mv a0, t2
+    j sum_exit
+    # end of body
+    
+sum_exit:
+    # start of epilogue
+    lw ra, 44(sp)
+    addi sp, sp, 56
+    # end of epilogue
+    
+    ret
+    
+main:
+    # start of prologue
+    addi sp, sp, -84
+    sw ra, 44(sp)
+    # end of prologue
+    
+    # start of body
+    li t0, 1
+    mv t1, t0
+    li t0, 1
+    mv t2, t0
+    li t0, 1
+    mv t3, t0
+    li t0, 1
+    mv t4, t0
+    li t0, 1
+    mv t5, t0
+    li t0, 1
+    mv t6, t0
+    li t0, 1
+    mv a0, t0
+    li t0, 1
+    mv a1, t0
+    li t0, 1
+    mv a2, t0
+    li t0, 1
+    mv a2, t0
+    li t0, 1
+    mv a2, t0
+    sw t1, 48(sp)
+    sw t2, 52(sp)
+    sw t3, 56(sp)
+    sw t4, 60(sp)
+    sw t5, 64(sp)
+    sw t6, 68(sp)
+    sw a0, 72(sp)
+    sw a1, 76(sp)
+    lw a0, 48(sp)
+    lw a1, 52(sp)
+    lw a2, 56(sp)
+    lw a3, 60(sp)
+    lw a4, 64(sp)
+    lw a5, 68(sp)
+    lw a6, 72(sp)
+    lw a7, 76(sp)
+    call sum
+    sw a0, 80(sp)
+    lw t0, 80(sp)
+    mv a0, t0
+    j main_exit
+    # end of body
+    
+main_exit:
+    # start of epilogue
+    lw ra, 44(sp)
+    addi sp, sp, 84
+    # end of epilogue
+    
+    ret

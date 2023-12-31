@@ -18,7 +18,7 @@ class ScopeStack:
             return self.stack[-1]
         
     def open(self,scope:Scope) -> None:
-        if(len(self.stack)>0):
+        if(len(self.stack)<self.stack_capacity):
              self.stack.append(scope)
         else:
             raise OverflowError
@@ -61,7 +61,6 @@ class ScopeStack:
           if (len(self.stack) == 1):
               return True
         return False
-      # To find if there is a name conflict in the current scope.
     
     def findConflict(self, name: str) -> Optional[Symbol]:
         if self.get_current_scope().containsKey(name):

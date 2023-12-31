@@ -28,14 +28,7 @@ class RiscvAsmEmitter(AsmEmitter):
         # the start of the asm code
         # int step10, you need to add the declaration of global var here
         self.printer.println(".data")
-        for name, initial_val in filter(lambda x: x[1], globalDecls):
-            self.printer.printDATAWord(name, initial_val)
-
         self.printer.println("")
-        self.printer.println(".bss")
-        for name, _ in filter(lambda x: not x[1], globalDecls):
-            self.printer.printBSS(name, 4)
-
         self.printer.println("")
         self.printer.println(".text")
         self.printer.println(".global main")
@@ -52,7 +45,7 @@ class RiscvAsmEmitter(AsmEmitter):
         for instr in func.getInstrSeq():
             instr.accept(selector)
 
-        info = SubroutineInfo(func.entry)
+        info = SubroutineInfo(func)
 
         return (selector.seq, info)
 
@@ -71,7 +64,7 @@ class RiscvAsmEmitter(AsmEmitter):
 
         def visitOther(self, instr: TACInstr) -> None:
             raise NotImplementedError("RiscvInstrSelector visit{} not implemented".format(type(instr).__name__))
-
+        
         # in step11, you need to think about how to deal with globalTemp in almost all the visit functions. 
         def visitReturn(self, instr: Return) -> None:
             if instr.value is not None:
@@ -96,7 +89,8 @@ class RiscvAsmEmitter(AsmEmitter):
 
             }[instr.op]
             self.seq.append(Riscv.Unary(op, instr.dst, instr.operand))
-
+        def visitCall(self, instr: Call) -> None:
+            self.seq.append(Riscv.Call.emitcall(instr))
         def visitBinary(self, instr: Binary) -> None:
             """
             For different tac operation, you should translate it to different RiscV code

@@ -7,7 +7,7 @@ from utils.tac.reg import Reg
 from utils.tac.tacinstr import TACInstr, Call
 from utils.tac.tacop import InstrKind
 from utils.tac.temp import Temp
-
+from utils.error import *
 from enum import Enum, auto, unique
 
 WORD_SIZE: Final[int] = 4  # in bytes
@@ -201,14 +201,15 @@ class Riscv:
     LoadWord = TACInstr.fromNative(NativeLoadWord)
     StoreWord = TACInstr.fromNative(NativeStoreWord)
 
-    class RCall(TACInstr):
+    class Call(TACInstr):
         @classmethod
-        def fromCall(cls, call: Call):
-            assert isinstance(call, Call)
-            return cls(call.label, call.srcs, call.dsts[0])
+        def emitcall(self, call):
+            if not isinstance(call, Call):
+                raise DecafBadFuncCallError('Wrong calling')
+            return self(call.label, call.srcs, call.dsts[0])
 
-        def __init__(self, func_label: Label, param_list: List[Temp], dst: Temp):
-            super().__init__(InstrKind.CALL, [dst], param_list, func_label)
+        def __init__(self, funcLabel: Label, param_list: List[Temp], dst: Temp):
+            super().__init__(InstrKind.CALL, [dst], param_list, funcLabel)
 
         def __str__(self) -> str:
             return f"call {self.label.name}"

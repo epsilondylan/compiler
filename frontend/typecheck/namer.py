@@ -29,22 +29,34 @@ class Namer(Visitor[ScopeStack, None]):
         # Global scope. You don't have to consider it until Step 6.
         program.globalScope = GlobalScope
         ctx = ScopeStack(program.globalScope)
-
         program.accept(self, ctx)
         return program
 
     def visitFunction(self, func: Function, ctx: ScopeStack) -> None:
-        symbol = FuncSymbol(func.ident.value, func.ret_t.type, ctx.get_current_scope())
+        
+        func_symbol = FuncSymbol(func.ident.value, func.rettype.type, ctx.get_current_scope())
         for param in func.parameterList:
-            symbol.addParaType(param.var_t.type)
-        potential_sym = ctx.lookup(func.ident.value)
-        if ctx.findConflict(func.ident.value) and not (isinstance(potential_sym, FuncSymbol) and potential_sym == symbol):
-            raise DecafDeclConflictError(func.ident.value)
-        ctx.declare(symbol)
-        func.setattr('symbol', symbol)
+            func_symbol.addParaType(param.var_type.type)
+        
+        if not ctx.findConflict(func.ident.value):
+            ctx.declare(func_symbol)
+            func.setattr('symbol', func_symbol)
+            
+        else:
+            if isinstance(ctx.lookup(func.ident.value),FuncSymbol) == False :
+                raise DecafDeclConflictError(func.ident.value)
+            else:
+                ctx.declare(func_symbol)
+                func.setattr(func_symbol)
+        
         if func.body is None:
-            return
-        symbol.define_function()
+            pass
+        if not func_symbol.defined:
+            func_symbol.defined = True
+        else:
+            raise DecafFunctionDefinedTwiceError(f"function {func.ident.value} is defined twice")
+        
+        self.defined = True
         with ctx.local():
             for parameter in func.parameterList:
                 parameter.accept(self, ctx)
@@ -65,7 +77,6 @@ class Namer(Visitor[ScopeStack, None]):
         if not program.hasMainFunc():
             raise DecafNoMainFuncError
         for children in program:
-            assert ctx.isGlobalScope()
             children.accept(self, ctx)
     
     def visitFor(self, stmt: For, ctx :ScopeStack) -> None:
@@ -130,7 +141,7 @@ class Namer(Visitor[ScopeStack, None]):
         
         if ctx.findConflict(decl.ident.value) is not None:
             symbol = ctx.findConflict(decl.ident.value)
-            newvar = VarSymbol(decl.ident.value, decl.var_t.type)
+            newvar = VarSymbol(decl.ident.value, decl.var_type.type)
             if ctx.isGlobalScope():
                 newvar.isGlobal = True
                 if decl.init_expr is not NULL:
@@ -141,7 +152,7 @@ class Namer(Visitor[ScopeStack, None]):
         else:
             symbol = ctx.lookup(decl.ident.value)
             if(decl.getattr('symbol') is None):
-                newvar = VarSymbol(decl.ident.value, decl.var_t.type)
+                newvar = VarSymbol(decl.ident.value, decl.var_type.type)
                 if ctx.isGlobalScope():
                     newvar.isGlobal = True
                     if decl.init_expr is not NULL:
@@ -150,7 +161,7 @@ class Namer(Visitor[ScopeStack, None]):
                 ctx.declare(newvar)
                 decl.setattr('symbol', newvar)
         if symbol is None:
-            newvar = VarSymbol(decl.ident.value, decl.var_t.type)
+            newvar = VarSymbol(decl.ident.value, decl.var_type.type)
             if ctx.isGlobalScope():
                     newvar.isGlobal = True
                     if decl.init_expr is not NULL:
@@ -160,6 +171,20 @@ class Namer(Visitor[ScopeStack, None]):
             decl.setattr('symbol', newvar)
         if decl.init_expr is not NULL:
             decl.init_expr.accept(self, ctx)
+
+    def visitParameter(self, that: Parameter, ctx: T) -> None:
+        return self.visitDeclaration(that, ctx)
+    
+    def visitCall(self, call: Call, ctx: ScopeStack) -> None:
+        func: FuncSymbol = ctx.lookup(call.ident.value)
+        if func is None or not func.isFunc:
+            raise DecafUndefinedFuncError(call.ident.value)
+        if len(call.argument_list) != func.parameterNum:
+            raise DecafBadFuncCallError(f"Invalid parameter length, expecting {func.parameterNum} parameters, but got {len(call.argument_list)}")
+        call.setattr('symbol',func)
+        for arg in call.argument_list:
+            arg.accept(self, ctx)
+
 
     def visitAssignment(self, expr: Assignment, ctx :ScopeStack) -> None:
         if not isinstance(expr.lhs, Identifier):

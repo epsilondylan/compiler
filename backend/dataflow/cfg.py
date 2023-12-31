@@ -1,5 +1,5 @@
 from backend.dataflow.basicblock import BasicBlock
-
+from queue import Queue
 """
 CFG: Control Flow Graph
 
@@ -23,17 +23,18 @@ class CFG:
             self.links[u][1].add(v)
             self.links[v][0].add(u)
 
-        """
-        You can start from basic block 0 and do a DFS traversal of the CFG
-        to find all the reachable basic blocks.
-        """
         self.reachable = set()
-        q = [0]
-        while q:
-            visited_node = q.pop(0)
-            self.reachable.add(visited_node)
-            for n in self.links[visited_node][1].difference(self.reachable):
-                q.append(n)
+        q = Queue()
+        q.put(0)
+        while not q.empty():
+            current_node = q.get()
+            self.reachable.add(current_node)
+            
+            unvisited_neighbors = self.links[current_node][1].difference(self.reachable)
+    
+            for neighbor in unvisited_neighbors:
+                q.put(neighbor)
+
     def getBlock(self, id):
         return self.nodes[id]
 
@@ -49,5 +50,10 @@ class CFG:
     def getOutDegree(self, id):
         return len(self.links[id][1])
 
-    def iterator(self):
-        return iter(self.nodes)
+    def iterator(self): #iterate for DFS
+        for n in self.reachable:
+            yield self.nodes[n]
+
+    def __len__(self):
+        return len(self.reachable)
+

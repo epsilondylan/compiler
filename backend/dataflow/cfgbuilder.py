@@ -26,26 +26,26 @@ class CFGBuilder:
                     self.close()
                     self.currentBBLabel = item.label
             else:
-                if isinstance(item, Riscv.RCall):
+                if not isinstance(item, Riscv.Call):
+                    self.buf.append(Loc(item))
+                    if not item.isSequential():
+                        if item.kind is InstrKind.JMP:
+                            kind = BlockKind.END_BY_JUMP
+                        elif item.kind is InstrKind.COND_JMP:
+                            kind = BlockKind.END_BY_COND_JUMP
+                        elif item.kind is InstrKind.RET:
+                            kind = BlockKind.END_BY_RETURN
+                        else:
+                            kind = None
+                        bb = BasicBlock(kind, len(self.bbs), self.currentBBLabel, self.buf)
+                        self.save(bb)
+                else:
                     bb = BasicBlock(BlockKind.CONTINUOUS, len(self.bbs), self.currentBBLabel, self.buf)
                     self.save(bb)
                     self.buf.append(Loc(item))
                     bb = BasicBlock(BlockKind.CALL, len(self.bbs), self.currentBBLabel, self.buf)
                     self.save(bb)
-                    continue
-                self.buf.append(Loc(item))
-                if not item.isSequential():
-                    if item.kind is InstrKind.JMP:
-                        kind = BlockKind.END_BY_JUMP
-                    elif item.kind is InstrKind.COND_JMP:
-                        kind = BlockKind.END_BY_COND_JUMP
-                    elif item.kind is InstrKind.RET:
-                        kind = BlockKind.END_BY_RETURN
-                    else:
-                        kind = None
-                    bb = BasicBlock(kind, len(self.bbs), self.currentBBLabel, self.buf)
-                    self.save(bb)
-
+                    
         if not len(self.buf) == 0:
             raise IllegalArgumentException
 

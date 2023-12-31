@@ -182,9 +182,16 @@ class CondBranch(TACInstr):
     def accept(self, v: TACVisitor) -> None:
         v.visitCondBranch(self)
 
-class Call(TACInstr):
-    def __init__(self, func_label: Label, dst: Temp, TempParms: List[Temp]):
-        super(Call, self).__init__(InstrKind.SEQ, [dst], TempParms, func_label)
+class Call(TACInstr): # We define call tac here to simplify the param transfering process.
+    #def __init__(
+    #    self,
+    #    kind: InstrKind,
+    #    dsts: list[Temp],
+    #    srcs: list[Temp],
+    #    label: Optional[Label],
+    #) -> None:
+    def __init__(self, funcLabel: Label, dst: Temp, TempParms: List[Temp]):
+        super().__init__(InstrKind.SEQ, [dst], TempParms, funcLabel)
 
     def accept(self, v: TACVisitor) -> None:
         return v.visitCall(self)
