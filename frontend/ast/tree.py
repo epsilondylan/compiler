@@ -76,7 +76,6 @@ class Program(ListNode["Function"]):
             return new_instance
 
     def __iadd__(self, other: List[Union[Function, Declaration]]):
-        if(len(other) > 0 and isinstance(other[0],Union[Function,Declaration])):
             self.children += other
             return self
 
