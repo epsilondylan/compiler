@@ -150,10 +150,9 @@ class TACFuncEmitter(TACVisitor):
         return self.continueLabelStack[-1]
 
 class Handler:
-    def __init__(self, funcs: List[Function], globalDecls: List[Tuple[str, Optional[int]]]) -> None:
+    def __init__(self, funcs: List[Function]) -> None:
         self.funcs = []
         self.labelManager = LabelManager()
-        self.globalDecls = globalDecls
         for func in funcs:
             self.funcs.append(func)
             self.labelManager.putFuncLabel(func.ident.value)
@@ -167,7 +166,7 @@ class Handler:
         return TACFuncEmitter(entry, numArgs, self.labelManager)
 
     def visitEnd(self) -> TACProg:
-        return TACProg(self.labelManager.funcs, self.globalDecls)
+        return TACProg(self.labelManager.funcs)
 
 class TACGen(Visitor[TACFuncEmitter, None]):
     def __init__(self) -> None:
@@ -175,7 +174,7 @@ class TACGen(Visitor[TACFuncEmitter, None]):
 
     # Entry of this phase
     def transform(self, program: Program) -> TACProg:
-        handler = Handler(program.functions().values(),[(name, decl.getattr('symbol').initValue)for name, decl in program.globalDecls().items()])
+        handler = Handler(program.functions().values())
         for funcName, astFunc in program.functions().items():
             if astFunc.body is NULL:
                 continue

@@ -67,9 +67,6 @@ class Program(ListNode["Function"]):
     def functions(self) -> dict[str, Function]:
         return {func.ident.value: func for func in self if isinstance(func, Function)}
 
-    def globalDecls(self) -> dict[str, Declaration]:
-        return {decl.ident.value: decl for decl in self if isinstance(decl, Declaration)}
-
     def hasMainFunc(self) -> bool:
         return "main" in self.functions()
 

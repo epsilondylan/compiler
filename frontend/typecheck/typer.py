@@ -6,7 +6,6 @@ from frontend.ast.visitor import Visitor
 from frontend.scope.globalscope import GlobalScope
 from frontend.scope.scope import Scope
 from frontend.scope.scopestack import ScopeStack
-from frontend.type.array import ArrayType
 from utils.error import *
 
 """

@@ -59,24 +59,11 @@ class DecafContinueOutsideLoopError(Exception):
         super().__init__("Semantic error: 'continue' outside any loops")
 
 
-class DecafGlobalVarDefinedTwiceError(Exception):
-    def __init__(self, name: str) -> None:
-        super().__init__(
-            "Semantic error: global variable '%s' has been defined twice" % name
-        )
 class DecafFunctionDefinedTwiceError(Exception):
     def __init__(self, name: str) -> None:
         super().__init__(
             "Semantic error: function '%s' has been defined twice" % name
         )
-
-class DecafGlobalVarBadInitValueError(Exception):
-    def __init__(self, name: str) -> None:
-        super().__init__(
-            "Semantic error: the initial value of global variable '%s' must be an integer constant"
-            % name
-        )
-
 
 class DecafBadArraySizeError(Exception):
     def __init__(self) -> None:

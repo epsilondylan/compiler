@@ -41,8 +41,11 @@ class BruteRegAlloc(RegAlloc):
             reg.used = False
 
 
-        for temp, reg in zip(subEmitter.info.argTemps, Riscv.ArgRegs):
-            if(reg is not None):
+        for i in range(len(subEmitter.info.argTemps)):
+            temp = subEmitter.info.argTemps[i]
+            reg = Riscv.ArgRegs[i]
+            
+            if reg is not None:
                 self.bind(temp, reg)
             else:
                 raise RuntimeError("No available reg for args")
@@ -106,8 +109,17 @@ class BruteRegAlloc(RegAlloc):
                     subEmitter.emitNative(Riscv.NativeStoreWord(reg, Riscv.T0, 4 * temp.index))
                     self.unbind(temp)
             
-            for temp, reg in zip(bb.locs[0].instr.srcs, Riscv.ArgRegs):
-                subEmitter.emitLoadFromStack(reg, temp)
+            srcs_len = len(bb.locs[0].instr.srcs)
+            arg_regs_len = len(Riscv.ArgRegs)
+
+            for i in range(min(srcs_len, arg_regs_len)):
+                temp = bb.locs[0].instr.srcs[i]
+                reg = Riscv.ArgRegs[i]
+                
+                if reg is not None:
+                    subEmitter.emitLoadFromStack(reg, temp)
+                else:
+                    raise RuntimeError("No available reg for args")
                 
                 if reg.occupied:
                     raise(DecafBadFuncCallError('No reg can be used in func'))

@@ -80,9 +80,4 @@ class ScopeStack:
         self.open(Scope(ScopeKind.LOCAL))
         self.innerstack.append(self.close)
         return self
-
-    def global_(self):
-        self.open(Scope(ScopeKind.GLOBAL))
-        self.innerstack.append(self.close)
-        return self
     

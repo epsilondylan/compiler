@@ -22,7 +22,6 @@ class RiscvAsmEmitter(AsmEmitter):
         self,
         allocatableRegs: list[Reg],
         callerSaveRegs: list[Reg],
-        globalDecls: List[Tuple[str, Optional[int]]],
     ) -> None:
         super().__init__(allocatableRegs, callerSaveRegs)
         # the start of the asm code
