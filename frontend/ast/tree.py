@@ -54,6 +54,16 @@ class Program(ListNode["Function"]):
     def __init__(self, *children: Function) -> None:
         super().__init__("program", list(children))
 
+    def __iadd__(self, other: List[Union[Function, Declaration]]):
+            self.children += other
+            return self
+    
+    def __add__(self, other: List[Union[Function, Declaration]]):
+        if(len(other) > 0 and isinstance(other[0],Union[Function,Declaration])):
+            new_instance = copy.deepcopy(self)
+            new_instance.children += other
+            return new_instance
+        
     def functions(self) -> dict[str, Function]:
         return {func.ident.value: func for func in self if isinstance(func, Function)}
 
@@ -68,16 +78,7 @@ class Program(ListNode["Function"]):
 
     def accept(self, v: Visitor[T, U], ctx: T):
         return v.visitProgram(self, ctx)
-    
-    def __add__(self, other: List[Union[Function, Declaration]]):
-        if(len(other) > 0 and isinstance(other[0],Union[Function,Declaration])):
-            new_instance = copy.deepcopy(self)
-            new_instance.children += other
-            return new_instance
 
-    def __iadd__(self, other: List[Union[Function, Declaration]]):
-            self.children += other
-            return self
 
     
 
@@ -108,7 +109,7 @@ class Function(Node):
         )[key]
 
     def __len__(self) -> int:
-        return 3
+        return 3 + len(self.parameterList)
 
     def accept(self, v: Visitor[T, U], ctx: T):
         return v.visitFunction(self, ctx)

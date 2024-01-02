@@ -13,7 +13,7 @@ class CFG:
     def __init__(self, nodes: list[BasicBlock], edges: list[(int, int)]) -> None:
         self.nodes = nodes
         self.edges = edges
-
+        self.reachable = set()
         self.links = []
 
         for i in range(len(nodes)):
@@ -23,15 +23,12 @@ class CFG:
             self.links[u][1].add(v)
             self.links[v][0].add(u)
 
-        self.reachable = set()
         q = Queue()
         q.put(0)
-        while not q.empty():
+        while q.qsize() > 0:
             current_node = q.get()
             self.reachable.add(current_node)
-            
             unvisited_neighbors = self.links[current_node][1].difference(self.reachable)
-    
             for neighbor in unvisited_neighbors:
                 q.put(neighbor)
 

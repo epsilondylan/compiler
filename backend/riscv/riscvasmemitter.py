@@ -86,8 +86,8 @@ class RiscvAsmEmitter(AsmEmitter):
                 TacUnaryOp.NOT: RvUnaryOp.NOT,
                 TacUnaryOp.SEQZ: RvUnaryOp.SEQZ,
                 TacUnaryOp.SNEZ: RvUnaryOp.SNEZ,
-
             }[instr.op]
+
             self.seq.append(Riscv.Unary(op, instr.dst, instr.operand))
         def visitCall(self, instr: Call) -> None:
             self.seq.append(Riscv.Call.emitcall(instr))
@@ -212,23 +212,6 @@ class RiscvSubroutineEmitter(SubroutineEmitter):
     def emitEnd(self):
         self.printer.printComment("start of prologue")
         self.printer.printInstr(Riscv.SPAdd(-self.nextLocalOffset))
-
-        # Stack Structure
-        """
-        Arg (len - 1)
-        ...
-        Arg 8
-        ------------- `self.nextLocalOffset`
-        SPILL END
-        ...
-        SPILL BEGIN
-        RA
-        CALLEE END
-        ...
-        CALLEE BEGIN
-        ------------- SP
-        """
-
         # in step9, you need to think about how to store RA here
         # you can get some ideas from how to save CalleeSaved regs
         for i in range(len(Riscv.CalleeSaved)):
